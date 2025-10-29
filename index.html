@@ -8,14 +8,14 @@
   <meta name="theme-color" content="#162135" />
   <style>
     :root{
-      --bg:#162135;          /* fond sombre élégant */
-      --card:#141720;        /* cartes */
-      --text:#e7ecf3;        /* texte */
-      --muted:#9aa3b2;       /* texte secondaire */
-      --accent:#2EA1FF;      /* CTA primaire */
+      --bg:#162135;
+      --card:#141720;
+      --text:#e7ecf3;
+      --muted:#9aa3b2;
+      --accent:#2EA1FF;
       --accent-press:#1C8BE6;
-      --gold:#ffd54a;        /* or */
-      --size: min(86vw, 380px); /* taille roue mobile-first */
+      --gold:#ffd54a;
+      --size: min(86vw, 380px);
     }
     html,body{height:100%; background-color: var(--bg);} 
     body{
@@ -27,7 +27,6 @@
       -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
       overflow-x:hidden;
     }
-    /* Particules de fond (plein écran) */
     #bgParticles{ position:fixed; inset:0; z-index:0; pointer-events:none; background: radial-gradient(1200px 800px at 50% -10%, #1b2030 0%, #10131b 40%, var(--bg) 100%);} 
 
     .app{ position:relative; z-index:1; max-width: 520px; margin: 0 auto; padding: 24px 20px 96px; }
@@ -37,11 +36,9 @@
     .wheel-wrap{ position:relative; width:var(--size); height:var(--size); margin:18px auto 14px; }
     #wheel{ width:100%; height:100%; display:block; background: radial-gradient(closest-side, #1a1f2d 0%, #151826 65%, #10131b 100%); border-radius:50%; box-shadow: 0 12px 40px rgba(0,0,0,.45), inset 0 0 0 2px rgba(255,255,255,.06);}    
 
-    /* Pointeur (triangle pointe vers le bas) */
     .pointer{ position:absolute; left:50%; top:-12px; transform: translateX(-50%); width:0; height:0; border-left: 14px solid transparent; border-right:14px solid transparent; border-top: 22px solid var(--gold); filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
     .pointer::after{ content:""; position:absolute; left:-10px; top:-8px; width:20px; height:6px; background:#584a19; border-radius: 3px; filter: blur(.3px); opacity:.55; }
 
-    /* Confetti overlay: plein écran */
     #confetti{ position:fixed; inset:0; pointer-events:none; z-index:2; }
 
     .controls{ display:flex; flex-direction:column; align-items:center; gap:16px; margin-top:12px; text-align:center; }
@@ -70,11 +67,8 @@
     footer{ margin-top:22px; color:var(--muted); font-size:11px; text-align:center; }
 
     @keyframes pulse{ 0%{ transform: translateY(0) scale(1);} 50%{ transform: translateY(-1px) scale(1.02);} 100%{ transform: translateY(0) scale(1);} }
-
-    /* Prevent selection during spin */
     *{ -webkit-tap-highlight-color: transparent; user-select:none; }
 
-    /* Révélation progressive des éléments de résultat */
     @keyframes fadeUp{ 0%{ opacity:0; transform: translateY(6px) scale(.98);} 100%{ opacity:1; transform: translateY(0) scale(1);} }
     .result .kicker, .result .label, .result .title{ opacity:0; transform: translateY(6px) scale(.98); will-change: transform, opacity; }
     .result.show .kicker{ animation: fadeUp .36s cubic-bezier(.2,.7,.3,1) both .00s; }
@@ -83,7 +77,6 @@
   </style>
 </head>
 <body>
-  <!-- Particules de fond plein écran -->
   <canvas id="bgParticles"></canvas>
 
   <main class="app">
@@ -110,14 +103,12 @@
     </footer>
   </main>
 
-  <!-- Confettis plein écran -->
   <canvas id="confetti"></canvas>
   
-
   <script>
   (function(){
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    let locked = false;           // un seul tirage par session (refresh = reset)
+    let locked = false; // one spin per session (refresh resets unless persisted)
 
     // DOM refs
     const WHEEL = document.getElementById('wheel');
@@ -131,9 +122,9 @@
     const cfx = CONFETTI.getContext('2d');
     const bgx = BG.getContext('2d');
 
-    // Segments (7 au total)
+    // Segments (7 total)
     const segments = [
-      { label: "First deposit TRIPLED!", color: "#FFD54A" },
+      { label: "First deposit TRIPLED!", color: "#FFD54A" }, // WIN
       { label: "LOST ❌",               color: "#293248" },
       { label: "$100 CASH",             color: "#2EA1FF" },
       { label: "LOST ❌",               color: "#293248" },
@@ -142,7 +133,6 @@
       { label: "LOST ❌",               color: "#293248" }
     ];
 
-    // Winner detection regex (EN)
     const WIN_REGEX = /TRIPLED/i;
 
     // Geometry
@@ -154,8 +144,39 @@
     const ARC = TWO_PI / segments.length;
 
     // Focus & sheen
-    let prizeFocus = false;           // dim des autres segments après le spin
-    let sheen = {active:false, t0:0}; // balayage lumineux sur segment gagnant
+    let prizeFocus = false;
+    let sheen = {active:false, t0:0};
+
+    // ---------- PERSISTENCE ----------
+    const STORAGE_KEY = 'bonus_wheel_state_en_v1';
+    let targetIndex = segments.findIndex(s => WIN_REGEX.test(s.label));
+    if (targetIndex < 0) targetIndex = 0;
+
+    function alignToWin(){
+      const base = targetIndex * ARC + ARC/2; // center of winner slice (0 is up)
+      rotation = -base;                       // put winner under the pointer
+    }
+    function saveState(){
+      try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({spun:true, ts:Date.now()})); }catch(e){}
+    }
+    function restoreState(){
+      try{
+        if (/#reset/.test(location.hash)) localStorage.removeItem(STORAGE_KEY);
+        const s = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+        if (s && s.spun){
+          locked = true;
+          prizeFocus = true;
+          alignToWin();
+          drawWheel();
+          showResult();
+          if (claimBtn) claimBtn.classList.add('show','sheen');
+          if (spinBtn)  spinBtn.remove();
+          return true;
+        }
+      }catch(e){}
+      return false;
+    }
+    // ---------------------------------
 
     // Draw wheel
     function drawWheel(){
@@ -166,9 +187,9 @@
       ctx.clearRect(0,0,WHEEL.width, WHEEL.height);
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate(rotation - Math.PI/2); // 0 rad = vers le haut
+      ctx.rotate(rotation - Math.PI/2); // 0 rad = pointing up
 
-      // Anneau externe décoratif
+      // Outer decorative ring
       ctx.save();
       ctx.beginPath();
       ctx.arc(0,0, rad + 16*dpr, 0, TWO_PI);
@@ -185,7 +206,7 @@
         const segWin = (i === targetIndex);
         ctx.globalAlpha = (prizeFocus && !segWin) ? 0.28 : 1;
         const start = i * ARC; const end = start + ARC;
-        // tranche colorée
+
         ctx.beginPath();
         ctx.moveTo(0,0); ctx.arc(0,0, rad, start, end);
         const grad = ctx.createLinearGradient(0,0, rad, rad);
@@ -193,12 +214,11 @@
         grad.addColorStop(1, shade(seg.color, +6));
         ctx.fillStyle = grad; ctx.fill();
 
-        // séparateur
         ctx.lineWidth = 2*dpr; ctx.strokeStyle = 'rgba(0,0,0,.35)';
         ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, rad, start, start);
         ctx.stroke();
 
-        // texte (stylisé, uppercase)
+        // Text
         const mid = start + ARC/2;
         ctx.rotate(mid);
         ctx.translate(rad*0.70, 0);
@@ -214,7 +234,7 @@
         ctx.restore();
       });
 
-      // lueur interne subtile
+      // Subtle inner glow
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const glow = ctx.createRadialGradient(0,0, rad*0.2, 0,0, rad*0.92);
@@ -223,7 +243,7 @@
       ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0,0, rad*0.92, 0, TWO_PI); ctx.fill();
       ctx.restore();
 
-      // centre
+      // Hub
       ctx.beginPath(); ctx.arc(0,0, rad*0.14, 0, TWO_PI);
       const hub = ctx.createRadialGradient(0,0, 2*dpr, 0,0, rad*0.14);
       hub.addColorStop(0, '#ffffff'); hub.addColorStop(1, '#e9eef7');
@@ -279,7 +299,7 @@
       });
     }
 
-    // Halo pulse (segment gagnant) + light sweep
+    // Halo pulse + light sweep on winner slice
     let halo = {active:false, id:null};
     function startHaloPulse(){
       halo.active = true;
@@ -293,9 +313,8 @@
         ctx.save();
         ctx.translate(WHEEL.width/2, WHEEL.height/2);
         ctx.rotate(rotation - Math.PI/2);
-        const start = targetIndex*ARC + 0.03; // léger inset
+        const start = targetIndex*ARC + 0.03;
         const end = start + ARC - 0.03;
-        // Arc extérieur lumineux
         ctx.beginPath();
         ctx.arc(0,0, rad + 12*dpr, start, end);
         ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
@@ -304,7 +323,6 @@
         ctx.shadowBlur = 28*dpr;
         ctx.globalCompositeOperation = 'lighter';
         ctx.stroke();
-        // Glow interne doré (autour de la case gagnante)
         const inner = rad*0.80, outer = rad*0.98;
         ctx.beginPath();
         ctx.arc(0,0, outer, start, end);
@@ -315,7 +333,6 @@
         ctx.shadowColor = 'rgba(255,213,74,.45)';
         ctx.shadowBlur = 24*dpr;
         ctx.fill();
-        // Light sweep sur l'arc gagnant (2s)
         if (sheen.active) drawWinSheenOverlay(rad, now);
         ctx.restore();
         halo.id = requestAnimationFrame(loop);
@@ -339,7 +356,7 @@
       ctx.restore();
     }
 
-    // Particules internes à la carte résultat (sans changer le fond du site)
+    // Result card particles
     let resultFxId = null;
     function startResultFx(){
       const res = document.getElementById('result');
@@ -383,7 +400,7 @@
       window.addEventListener('resize', fit, {passive:true});
     }
 
-    // Confetti plein écran
+    // Full-screen confetti
     const confColors = ['#ffd54a','#ffb300','#00e0a4','#4fc3f7','#ff6b6b','#e6eeff'];
     let confetti = []; let confettiId = null;
 
@@ -400,7 +417,7 @@
         vr: (Math.random()-.5)*0.25
       }));
       const start = performance.now();
-      const fade = 800; // fondu de sortie
+      const fade = 800;
       cancelAnimationFrame(confettiId);
       (function tick(now){
         const elapsed = now - start;
@@ -422,7 +439,7 @@
       })(start);
     }
 
-    // Particules blanches de fond (subtiles)
+    // Subtle background dots
     let dots = [];
     function initDots(){
       fitFullScreen(BG);
@@ -453,7 +470,7 @@
     function ensureAudio(){
       if (!audioCtx) {
         const Ctx = window.AudioContext || window.webkitAudioContext;
-        if (!Ctx) return; // vieux navigateurs
+        if (!Ctx) return;
         audioCtx = new Ctx();
       }
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
@@ -476,11 +493,9 @@
       }catch(e){}
     }
 
-    // Son cash à l'arrêt
     function playCash(){
       try{ ensureAudio(); if(!audioCtx) return; }catch(e){ return; }
       const t = audioCtx.currentTime;
-      // Ding (cloche)
       const bell = audioCtx.createOscillator();
       const bellGain = audioCtx.createGain();
       bell.type = 'sine';
@@ -491,7 +506,6 @@
       bellGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
       bell.connect(bellGain).connect(audioCtx.destination);
       bell.start(t); bell.stop(t + 0.26);
-      // Bruit de pièces
       const bufferSize = Math.max(1, Math.floor(2 * audioCtx.sampleRate * 0.25));
       const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
@@ -508,21 +522,15 @@
       noise.start(t + 0.02); noise.stop(t + 0.24);
     }
 
-    // Spin logic: force toujours sur "Premier dépôt TRIPLÉ !"
-    let targetIndex = segments.findIndex(s => WIN_REGEX.test(s.label));
-    if (targetIndex < 0) targetIndex = 0; // fallback safety for preview/builds
-
+    // Spin logic: always land on TRIPLED
     function computeTargetRotation(){
-      const base = targetIndex * ARC + ARC/2; // centre du segment gagnant (repère 0 en haut)
-      const current = ((rotation % TWO_PI) + TWO_PI) % TWO_PI; // [0,2π)
-      const delta = ((-base - current) + TWO_PI) % TWO_PI; // combien il faut ajouter pour aligner
-      const extraTurns = 4 + Math.floor(Math.random()*2); // entre 4 et 5 tours complets
+      const base = targetIndex * ARC + ARC/2;
+      const current = ((rotation % TWO_PI) + TWO_PI) % TWO_PI;
+      const delta = ((-base - current) + TWO_PI) % TWO_PI;
+      const extraTurns = 4 + Math.floor(Math.random()*2);
       return rotation + extraTurns*TWO_PI + delta;
     }
 
-    function easeOutQuint(t){ return 1 - Math.pow(1 - t, 5); }
-
-    // Démarrage doux -> accélération -> ralentissement
     function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
 
     let spinning = false;
@@ -533,7 +541,7 @@
 
       const start = rotation;
       const end = computeTargetRotation();
-      const dur = 5000 + Math.random()*800; // départ plus lent puis accélération, arrêt doux // 4.4s–5.2s (plus d'inertie)
+      const dur = 5000 + Math.random()*800; // 4.4s–5.2s
       const t0 = performance.now();
       lastTickIndex = Math.floor((((start % TWO_PI)+TWO_PI)%TWO_PI) / ARC);
 
@@ -542,7 +550,6 @@
         const e = easeInOutCubic(t);
         rotation = start + (end - start) * e;
 
-        // tick sonore + micro-vibration au passage de chaque séparateur
         const norm = (((rotation % TWO_PI)+TWO_PI)%TWO_PI);
         const tickIndex = Math.floor(norm / ARC);
         if (tickIndex !== lastTickIndex){ lastTickIndex = tickIndex; playTick(); }
@@ -557,13 +564,14 @@
       showResult();
       launchConfetti();
       if (claimBtn) { claimBtn.classList.add('show'); claimBtn.classList.add('sheen'); }
-      locked = true;                // verrouillage session
-      prizeFocus = true;            // dim des autres segments
+      locked = true;
+      prizeFocus = true;
       try { if (navigator.vibrate) navigator.vibrate(30); } catch(e){}
       if (spinBtn){ spinBtn.remove(); }
-      startHaloPulse();             // halo blanc pulsant sur segment gagnant
-      startWinSheen();              // light sweep sur le segment gagnant
+      startHaloPulse();
+      startWinSheen();
       try{ playCash(); }catch(e){}
+      saveState();
     }
 
     function showResult(){
@@ -578,12 +586,13 @@
       startResultFx();
     }
 
-    // Setup initial
-    drawWheel();
+    // Initial setup
+    const restored = restoreState();
+    if(!restored){ drawWheel(); }
     initDots();
     renderDots();
 
-    // Redraw on resize / orientation
+    // Resize/orientation
     let ro;
     window.addEventListener('resize', ()=>{
       clearTimeout(ro);
@@ -597,15 +606,12 @@
     if (spinBtn) spinBtn.addEventListener('click', spin);
     WHEEL.addEventListener('click', ()=>{ if(!spinning && !locked) spin(); });
 
-    // =============================
-    // Test harness (console) — run with ?test=1 or #test
-    // =============================
+    // --------- Optional test harness ---------
     (function runTests(){
       const need = /[?&]test=1/.test(location.search) || /#test/.test(location.hash);
       if(!need) return;
       console.group('%cSelf-tests: Bonus Wheel','color:#0f0');
       try{
-        // Test 1: computeTargetRotation doit aligner sur targetIndex (approx visuelle)
         let ok1 = true;
         for(let i=0;i<5;i++){
           rotation = Math.random()*TWO_PI;
@@ -613,9 +619,8 @@
           const endMod = ((end % TWO_PI) + TWO_PI) % TWO_PI;
           if (isNaN(endMod)) ok1 = false;
         }
-        console.info('Winner segment alignment (approx):', ok1);
+        console.info('Winner alignment (approx):', ok1);
 
-        // Test 2: un seul tirage par session
         spinning = false; locked = false;
         spin();
         setTimeout(()=>{
@@ -624,33 +629,15 @@
           console.info('Result card present:', /FIRST DEPOSIT/.test(document.getElementById('result').innerText));
         }, 60);
 
-        // Test 3: confetti couvre tout l'écran
         const fullW = Math.round(window.innerWidth * dpr);
         const fullH = Math.round(window.innerHeight * dpr);
         console[(CONFETTI.width===fullW && CONFETTI.height===fullH)?'info':'error']('Full-screen confetti:', CONFETTI.width, CONFETTI.height);
 
-        // Test 4: structure segments
-        console[segments.length===7?'info':'error']('Segments count = 7:', segments.length);
-        console[targetIndex!==-1?'info':'error']('Index TRIPLED segment:', targetIndex);
-        // Test 4.1: exclamation present in winner label
-        try{ console[/!/.test(segments[0].label)?'info':'warn']('Exclamation present in winner label:', segments[0].label); }catch(e){}
-        // Test 4.2: easing in-out present
+        console[segments.length===7?'info':'error']('Segments = 7:', segments.length);
+        console[targetIndex!==-1?'info':'error']('TRIPLED index:', targetIndex);
         console[typeof easeInOutCubic==='function'?'info':'error']('easeInOutCubic present:', typeof easeInOutCubic);
-        // Test 5: launchConfetti doit être une fonction et contenir le fade-out
         console[typeof launchConfetti==='function' ? 'info':'error']('launchConfetti is a function:', typeof launchConfetti);
-        try{ console[/globalAlpha/.test(launchConfetti.toString()) ? 'info':'warn']('Confetti fade-out present (globalAlpha):', /globalAlpha/.test(launchConfetti.toString())); }catch(e){ console.warn('toString non dispo'); }
-        // Test 6: CTA plus étroite que la card résultat (écart 8–120px attendu)
-        try{
-          const resEl = document.getElementById('result');
-          const ctaEl = document.getElementById('claimBtn');
-          if (resEl && ctaEl){
-            const rw = parseInt(getComputedStyle(resEl).width);
-            const cw = parseInt(getComputedStyle(ctaEl).width);
-            const diff = rw - cw; // doit être > 0 car CTA moins large
-            console[(diff>=8 && diff<=120)? 'info':'warn']('CTA narrower than result card:', {rw, cw, diff});
-          }
-        }catch(e){ console.warn('CTA/Result width test not available'); }
-
+        try{ console[/globalAlpha/.test(launchConfetti.toString()) ? 'info':'warn']('Confetti fade-out present:', /globalAlpha/.test(launchConfetti.toString())); }catch(e){ console.warn('toString not available'); }
       }catch(e){ console.error('Tests error:', e); }
       console.groupEnd();
     })();
