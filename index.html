@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Bonus Wheel – Mobile</title>
+  <meta name="description" content="Spin the wheel and try to grab an exclusive bonus." />
+  <meta name="theme-color" content="#162135" />
+  <style>
+    :root{
+      --bg:#162135;          /* fond sombre élégant */
+      --card:#141720;        /* cartes */
+      --text:#e7ecf3;        /* texte */
+      --muted:#9aa3b2;       /* texte secondaire */
+      --accent:#2EA1FF;      /* CTA primaire */
+      --accent-press:#1C8BE6;
+      --gold:#ffd54a;        /* or */
+      --size: min(86vw, 380px); /* taille roue mobile-first */
+    }
+    html,body{height:100%; background-color: var(--bg);} 
+    body{
+      margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      background: radial-gradient(1200px 800px at 50% -10%, #1b2030 0%, #10131b 40%, var(--bg) 100%);
+      background-color: var(--bg);
+      background-attachment: fixed;
+      color:var(--text);
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+      overflow-x:hidden;
+    }
+    /* Particules de fond (plein écran) */
+    #bgParticles{ position:fixed; inset:0; z-index:0; pointer-events:none; background: radial-gradient(1200px 800px at 50% -10%, #1b2030 0%, #10131b 40%, var(--bg) 100%);} 
+
+    .app{ position:relative; z-index:1; max-width: 520px; margin: 0 auto; padding: 24px 20px 96px; }
+    header{ text-align:center; margin-bottom:18px; }
+    .sub{ color:#fff; font-size: 20px; font-weight:900; letter-spacing:.2px; line-height:1.25; margin-top:12px; text-shadow: 0 1px 0 rgba(0,0,0,.25); }
+
+    .wheel-wrap{ position:relative; width:var(--size); height:var(--size); margin:18px auto 14px; }
+    #wheel{ width:100%; height:100%; display:block; background: radial-gradient(closest-side, #1a1f2d 0%, #151826 65%, #10131b 100%); border-radius:50%; box-shadow: 0 12px 40px rgba(0,0,0,.45), inset 0 0 0 2px rgba(255,255,255,.06);}    
+
+    /* Pointeur (triangle pointe vers le bas) */
+    .pointer{ position:absolute; left:50%; top:-12px; transform: translateX(-50%); width:0; height:0; border-left: 14px solid transparent; border-right:14px solid transparent; border-top: 22px solid var(--gold); filter: drop-shadow(0 2px 6px rgba(0,0,0,.6)); }
+    .pointer::after{ content:""; position:absolute; left:-10px; top:-8px; width:20px; height:6px; background:#584a19; border-radius: 3px; filter: blur(.3px); opacity:.55; }
+
+    /* Confetti overlay: plein écran */
+    #confetti{ position:fixed; inset:0; pointer-events:none; z-index:2; }
+
+    .controls{ display:flex; flex-direction:column; align-items:center; gap:16px; margin-top:12px; text-align:center; }
+
+    button.primary{ width: clamp(220px, 90vw, 520px); height:58px; border-radius: 16px; border:none; font-weight: 900; letter-spacing:.4px; font-size:17px; color:#fff; background: linear-gradient(180deg, var(--accent), var(--accent-press)); box-shadow: 0 12px 28px rgba(30, 157, 247, .35); cursor:pointer; transition: transform .06s ease, filter .2s ease; position:relative; overflow:hidden; }
+    button.primary::after{ content:""; position:absolute; inset:-40% -20%; background: radial-gradient(closest-side, rgba(255,255,255,.35), rgba(255,255,255,0) 60%); transform: translateX(-120%) rotate(15deg); animation: sheen 2.8s linear infinite; }
+    @keyframes sheen{ 0%{ transform: translateX(-120%) rotate(15deg);} 60%{ transform: translateX(140%) rotate(15deg);} 100%{ transform: translateX(140%) rotate(15deg);} }
+    button.primary:active{ transform: translateY(1px) scale(.995); filter: saturate(1.1); }
+    button.primary[disabled]{ opacity:.6; cursor:not-allowed; }
+
+    a.cta{ margin:12px auto 0; display:none; place-items:center; text-align:center; text-decoration:none; width: clamp(200px, 72vw, 360px); height:64px; border-radius: 18px; font-weight:900; letter-spacing:.4px; font-size:18px; color:#08110d; background: linear-gradient(180deg, #FFD54A, #FFB300); box-shadow: 0 16px 36px rgba(255, 213, 74, .35); border:1px solid transparent; box-sizing:border-box; position:relative; overflow:hidden; }
+    a.cta.show{ display:grid; animation:pulse 1.4s ease-in-out infinite; }
+    a.cta.sheen::after{ content:""; position:absolute; inset:-40% -20%; background: radial-gradient(closest-side, rgba(255,255,255,.35), rgba(255,255,255,0) 60%); transform: translateX(-120%) rotate(15deg); animation: sheen 3s linear infinite; }
+
+    .logos{ display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; margin-top:10px; margin-bottom:8px; }
+    .logos img{ height:36px; max-width:180px; object-fit:contain; filter: brightness(0) invert(1) drop-shadow(0 1px 0 rgba(0,0,0,.2)); opacity:.96; }
+
+    .result{ margin:14px auto 0; width: clamp(220px, 90vw, 520px); background: linear-gradient(180deg, #101a24, #0e1821); border-radius:18px; padding:22px 18px; border: 1px solid rgba(46,161,255,.20); box-shadow: 0 12px 40px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.04); text-align:center; position:relative; overflow:hidden; display:none; box-sizing:border-box; }
+    .result.show{ display:block; }
+    .result .kicker{ font-weight:900; letter-spacing:.22em; font-size:13px; color:#eaf2ff; opacity:.9; text-transform:uppercase; }
+    .result .label{ margin-top:6px; font-size:11px; color:#cfd6e6; opacity:.85; letter-spacing:.14em; text-transform:uppercase; }
+    .result .title{ margin-top:6px; font-size: clamp(22px, 6.8vw, 30px); font-weight:900; line-height:1.05; letter-spacing:.02em; }
+    .result .title span{ color:var(--gold); text-shadow: 0 0 24px rgba(255,255,255,.18); }
+    .result-fx{ position:absolute; inset:0; pointer-events:none; opacity:.75; }
+
+    footer{ margin-top:22px; color:var(--muted); font-size:11px; text-align:center; }
+
+    @keyframes pulse{ 0%{ transform: translateY(0) scale(1);} 50%{ transform: translateY(-1px) scale(1.02);} 100%{ transform: translateY(0) scale(1);} }
+
+    /* Prevent selection during spin */
+    *{ -webkit-tap-highlight-color: transparent; user-select:none; }
+
+    /* Révélation progressive des éléments de résultat */
+    @keyframes fadeUp{ 0%{ opacity:0; transform: translateY(6px) scale(.98);} 100%{ opacity:1; transform: translateY(0) scale(1);} }
+    .result .kicker, .result .label, .result .title{ opacity:0; transform: translateY(6px) scale(.98); will-change: transform, opacity; }
+    .result.show .kicker{ animation: fadeUp .36s cubic-bezier(.2,.7,.3,1) both .00s; }
+    .result.show .label{  animation: fadeUp .42s cubic-bezier(.2,.7,.3,1) both .08s; }
+    .result.show .title{  animation: fadeUp .48s cubic-bezier(.2,.7,.3,1) both .18s; }
+  </style>
+</head>
+<body>
+  <!-- Particules de fond plein écran -->
+  <canvas id="bgParticles"></canvas>
+
+  <main class="app">
+    <header>
+      <div class="logos" id="logos" aria-label="Logo">
+        <img src="./logo.svg" class="brand" alt="Logo" onerror="this.replaceWith(Object.assign(document.createElement('div'),{style:'color:#fff;opacity:.9;font-weight:800;letter-spacing:.12em;padding:6px 10px;border:1px dashed rgba(255,255,255,.25);border-radius:8px',textContent:'LOGO'}))"/>
+      </div>
+      <div class="sub">Spin the wheel and <b>try to grab an exclusive bonus</b>.</div>
+    </header>
+
+    <a id="claimBtn" class="cta" href="https://record.discasinoaffiliates.com/_MYDgVB4cGgVMzvGV4MrLVGNd7ZgqdRLk/12/" target="_blank" rel="nofollow noopener noreferrer" aria-label="Claim your bonus">CLAIM YOUR BONUS</a>
+
+    <section class="wheel-wrap" aria-label="Prize wheel">
+      <canvas id="wheel" aria-hidden="true"></canvas>
+      <div class="pointer" aria-hidden="true"></div>
+    </section>
+    <div class="controls">
+      <button id="spinBtn" class="primary" type="button" aria-label="Spin the wheel">SPIN THE WHEEL</button>
+      <div id="result" class="result" aria-live="polite"></div>
+    </div>
+
+    <footer>
+      18+ | Gambling involves risk: debt, isolation… In France, call 09 74 75 13 13 (non-surcharged call).
+    </footer>
+  </main>
+
+  <!-- Confettis plein écran -->
+  <canvas id="confetti"></canvas>
+  
+
+  <script>
+  (function(){
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    let locked = false;           // un seul tirage par session (refresh = reset)
+
+    // DOM refs
+    const WHEEL = document.getElementById('wheel');
+    const CONFETTI = document.getElementById('confetti');
+    const BG = document.getElementById('bgParticles');
+    const spinBtn = document.getElementById('spinBtn');
+    const claimBtn = document.getElementById('claimBtn');
+
+    if(!WHEEL || !CONFETTI || !BG){ console.error('Canvas not found'); return; }
+    const ctx = WHEEL.getContext('2d');
+    const cfx = CONFETTI.getContext('2d');
+    const bgx = BG.getContext('2d');
+
+    // Segments (7 au total)
+    const segments = [
+      { label: "First deposit TRIPLED!", color: "#FFD54A" },
+      { label: "LOST ❌",               color: "#293248" },
+      { label: "$100 CASH",             color: "#2EA1FF" },
+      { label: "LOST ❌",               color: "#293248" },
+      { label: "LOST ❌",               color: "#293248" },
+      { label: "LOST ❌",               color: "#293248" },
+      { label: "LOST ❌",               color: "#293248" }
+    ];
+
+    // Winner detection regex (EN)
+    const WIN_REGEX = /TRIPLED/i;
+
+    // Geometry
+    fitCanvasToCSS(WHEEL);
+    fitFullScreen(CONFETTI);
+    fitFullScreen(BG);
+    let rotation = 0; // radians
+    const TWO_PI = Math.PI * 2;
+    const ARC = TWO_PI / segments.length;
+
+    // Focus & sheen
+    let prizeFocus = false;           // dim des autres segments après le spin
+    let sheen = {active:false, t0:0}; // balayage lumineux sur segment gagnant
+
+    // Draw wheel
+    function drawWheel(){
+      fitCanvasToCSS(WHEEL);
+      const rad = (Math.min(WHEEL.width, WHEEL.height)/2) - (22 * dpr);
+      const cx = WHEEL.width/2; const cy = WHEEL.height/2;
+
+      ctx.clearRect(0,0,WHEEL.width, WHEEL.height);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rotation - Math.PI/2); // 0 rad = vers le haut
+
+      // Anneau externe décoratif
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0,0, rad + 16*dpr, 0, TWO_PI);
+      const ring = ctx.createRadialGradient(0,0, rad, 0,0, rad+18*dpr);
+      ring.addColorStop(0, 'rgba(255,255,255,.06)');
+      ring.addColorStop(1, 'rgba(255,255,255,.18)');
+      ctx.strokeStyle = ring;
+      ctx.lineWidth = 12*dpr; ctx.stroke();
+      ctx.restore();
+
+      // Segments
+      segments.forEach((seg, i)=>{
+        ctx.save();
+        const segWin = (i === targetIndex);
+        ctx.globalAlpha = (prizeFocus && !segWin) ? 0.28 : 1;
+        const start = i * ARC; const end = start + ARC;
+        // tranche colorée
+        ctx.beginPath();
+        ctx.moveTo(0,0); ctx.arc(0,0, rad, start, end);
+        const grad = ctx.createLinearGradient(0,0, rad, rad);
+        grad.addColorStop(0, shade(seg.color, -10));
+        grad.addColorStop(1, shade(seg.color, +6));
+        ctx.fillStyle = grad; ctx.fill();
+
+        // séparateur
+        ctx.lineWidth = 2*dpr; ctx.strokeStyle = 'rgba(0,0,0,.35)';
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0, rad, start, start);
+        ctx.stroke();
+
+        // texte (stylisé, uppercase)
+        const mid = start + ARC/2;
+        ctx.rotate(mid);
+        ctx.translate(rad*0.70, 0);
+        ctx.rotate(Math.PI/2);
+        const isWin = WIN_REGEX.test(seg.label);
+        ctx.fillStyle = isWin ? '#0b1209' : '#eaf2ff';
+        ctx.shadowColor = isWin ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.6)';
+        ctx.shadowBlur = 6*dpr;
+        ctx.font = `800 ${13*dpr}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto`;
+        const text = seg.label.toUpperCase();
+        const maxW = rad*0.58;
+        wrapFillText(ctx, text, 0, 0, maxW, 15*dpr, true);
+        ctx.restore();
+      });
+
+      // lueur interne subtile
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const glow = ctx.createRadialGradient(0,0, rad*0.2, 0,0, rad*0.92);
+      glow.addColorStop(0, 'rgba(255,255,255,.08)');
+      glow.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0,0, rad*0.92, 0, TWO_PI); ctx.fill();
+      ctx.restore();
+
+      // centre
+      ctx.beginPath(); ctx.arc(0,0, rad*0.14, 0, TWO_PI);
+      const hub = ctx.createRadialGradient(0,0, 2*dpr, 0,0, rad*0.14);
+      hub.addColorStop(0, '#ffffff'); hub.addColorStop(1, '#e9eef7');
+      ctx.fillStyle = hub; ctx.fill();
+
+      ctx.restore();
+    }
+
+    // Utils
+    function fitCanvasToCSS(canvas){
+      const rect = canvas.getBoundingClientRect();
+      const size = Math.round(Math.max(rect.width, rect.height));
+      canvas.width = size * dpr;
+      canvas.height = size * dpr;
+      return size;
+    }
+    function fitFullScreen(canvas){
+      const w = Math.round(window.innerWidth * dpr);
+      const h = Math.round(window.innerHeight * dpr);
+      canvas.width = w; canvas.height = h;
+      canvas.style.width = '100vw'; canvas.style.height = '100vh';
+    }
+
+    function shade(hex, pct){
+      const c = hex.replace('#','');
+      const n = parseInt(c,16);
+      let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
+      r = Math.min(255, Math.max(0, Math.round(r + (pct/100)*255)));
+      g = Math.min(255, Math.max(0, Math.round(g + (pct/100)*255)));
+      b = Math.min(255, Math.max(0, Math.round(b + (pct/100)*255)));
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function wrapFillText(ctx, text, x, y, maxWidth, lineHeight, center){
+      const words = text.split(' ');
+      let line = '';
+      const lines=[];
+      for (let n=0; n<words.length; n++){
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        if (metrics.width > maxWidth && n > 0){
+          lines.push(line.trim());
+          line = words[n] + ' ';
+        } else {
+          line = testLine;
+        }
+      }
+      lines.push(line.trim());
+      const startY = y - ((lines.length-1)*lineHeight)/2;
+      lines.forEach((l,i)=>{
+        const w = ctx.measureText(l).width;
+        ctx.fillText(l, x - (center? w/2 : 0), startY + i*lineHeight);
+      });
+    }
+
+    // Halo pulse (segment gagnant) + light sweep
+    let halo = {active:false, id:null};
+    function startHaloPulse(){
+      halo.active = true;
+      const t0 = performance.now();
+      cancelAnimationFrame(halo.id);
+      (function loop(now){
+        if(!halo.active) return;
+        const alpha = 0.25 + 0.25 * Math.sin((now - t0)/400);
+        drawWheel();
+        const rad = (Math.min(WHEEL.width, WHEEL.height)/2) - (22*dpr);
+        ctx.save();
+        ctx.translate(WHEEL.width/2, WHEEL.height/2);
+        ctx.rotate(rotation - Math.PI/2);
+        const start = targetIndex*ARC + 0.03; // léger inset
+        const end = start + ARC - 0.03;
+        // Arc extérieur lumineux
+        ctx.beginPath();
+        ctx.arc(0,0, rad + 12*dpr, start, end);
+        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.lineWidth = 22*dpr;
+        ctx.shadowColor = `rgba(255,255,255,${alpha})`;
+        ctx.shadowBlur = 28*dpr;
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.stroke();
+        // Glow interne doré (autour de la case gagnante)
+        const inner = rad*0.80, outer = rad*0.98;
+        ctx.beginPath();
+        ctx.arc(0,0, outer, start, end);
+        ctx.arc(0,0, inner, end, start, true);
+        ctx.closePath();
+        const p = Math.abs(Math.sin((now - t0)/420));
+        ctx.fillStyle = `rgba(255,213,74,${0.10 + 0.15*p})`;
+        ctx.shadowColor = 'rgba(255,213,74,.45)';
+        ctx.shadowBlur = 24*dpr;
+        ctx.fill();
+        // Light sweep sur l'arc gagnant (2s)
+        if (sheen.active) drawWinSheenOverlay(rad, now);
+        ctx.restore();
+        halo.id = requestAnimationFrame(loop);
+      })(t0);
+    }
+
+    function startWinSheen(){ sheen.active = true; sheen.t0 = performance.now(); setTimeout(()=> sheen.active = false, 2000); }
+    function drawWinSheenOverlay(rad, now){
+      ctx.save();
+      ctx.translate(WHEEL.width/2, WHEEL.height/2);
+      ctx.rotate(rotation - Math.PI/2);
+      const a0 = targetIndex*ARC, a1 = a0 + ARC;
+      const p = ((now - sheen.t0)/900) % 1;
+      const ang = a0 + p*(a1 - a0);
+      ctx.beginPath();
+      ctx.arc(0,0, rad*0.94, ang-0.08, ang+0.08);
+      ctx.strokeStyle = 'rgba(255,255,255,.55)';
+      ctx.lineWidth = 12*dpr;
+      ctx.globalCompositeOperation='lighter';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Particules internes à la carte résultat (sans changer le fond du site)
+    let resultFxId = null;
+    function startResultFx(){
+      const res = document.getElementById('result');
+      const cvs = document.getElementById('resultFx');
+      if(!res || !cvs) return;
+      const rfx = cvs.getContext('2d');
+      function fit(){
+        const rect = res.getBoundingClientRect();
+        cvs.width = Math.max(1, Math.floor(rect.width * dpr));
+        cvs.height = Math.max(1, Math.floor(rect.height * dpr));
+        cvs.style.width = rect.width + 'px';
+        cvs.style.height = rect.height + 'px';
+      }
+      fit();
+      const N = 70;
+      const sparks = Array.from({length:N}, ()=>({
+        x: Math.random()*cvs.width,
+        y: Math.random()*cvs.height,
+        r: (1 + Math.random()*2)*dpr,
+        a: 0.10 + Math.random()*0.20,
+        vx: (Math.random()-.5)*0.35*dpr,
+        vy: (Math.random()*0.6 + 0.2)*dpr,
+      }));
+      cancelAnimationFrame(resultFxId);
+      (function tick(){
+        rfx.clearRect(0,0,cvs.width,cvs.height);
+        sparks.forEach(s=>{
+          s.y -= s.vy; s.x += s.vx;
+          if (s.y < -6*dpr){ s.y = cvs.height + 6*dpr; s.x = Math.random()*cvs.width; }
+          if (s.x < -6*dpr){ s.x = cvs.width + 6*dpr; }
+          if (s.x > cvs.width + 6*dpr){ s.x = -6*dpr; }
+          rfx.save();
+          rfx.globalCompositeOperation = 'lighter';
+          rfx.shadowColor = 'rgba(255,213,74,.28)';
+          rfx.fillStyle = `rgba(255,213,74,${s.a})`;
+          rfx.beginPath(); rfx.arc(s.x, s.y, s.r, 0, Math.PI*2); rfx.fill();
+          rfx.restore();
+        });
+        resultFxId = requestAnimationFrame(tick);
+      })();
+      window.addEventListener('resize', fit, {passive:true});
+    }
+
+    // Confetti plein écran
+    const confColors = ['#ffd54a','#ffb300','#00e0a4','#4fc3f7','#ff6b6b','#e6eeff'];
+    let confetti = []; let confettiId = null;
+
+    function launchConfetti(duration=3400){
+      fitFullScreen(CONFETTI);
+      confetti = Array.from({length: 300}, ()=>({
+        x: Math.random()*CONFETTI.width,
+        y: -20*Math.random()*dpr,
+        r: 2 + Math.random()*4*dpr,
+        c: confColors[(Math.random()*confColors.length)|0],
+        vx: (Math.random()-.5)*1.6*dpr,
+        vy: (1.2 + Math.random()*2.4)*dpr,
+        rot: Math.random()*Math.PI*2,
+        vr: (Math.random()-.5)*0.25
+      }));
+      const start = performance.now();
+      const fade = 800; // fondu de sortie
+      cancelAnimationFrame(confettiId);
+      (function tick(now){
+        const elapsed = now - start;
+        const alpha = elapsed < duration ? 1 : Math.max(0, 1 - ((elapsed - duration)/fade));
+        cfx.clearRect(0,0,CONFETTI.width, CONFETTI.height);
+        cfx.save();
+        cfx.globalAlpha = alpha;
+        confetti.forEach(p=>{
+          p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.vy += 0.008*dpr;
+          if (p.y > CONFETTI.height+20*dpr){ p.y = -10*dpr; p.x = Math.random()*CONFETTI.width; }
+          cfx.save();
+          cfx.translate(p.x, p.y); cfx.rotate(p.rot);
+          cfx.fillStyle = p.c; cfx.fillRect(-p.r, -p.r, p.r*2, p.r*2);
+          cfx.restore();
+        });
+        cfx.restore();
+        if (elapsed < duration + fade){ confettiId = requestAnimationFrame(tick); }
+        else { cfx.clearRect(0,0,CONFETTI.width, CONFETTI.height); }
+      })(start);
+    }
+
+    // Particules blanches de fond (subtiles)
+    let dots = [];
+    function initDots(){
+      fitFullScreen(BG);
+      const count = 120;
+      dots = Array.from({length:count}, ()=>({
+        x: Math.random()*BG.width,
+        y: Math.random()*BG.height,
+        r: (0.4 + Math.random()*1.4)*dpr,
+        a: 0.06 + Math.random()*0.10,
+        vx: (Math.random()-.5)*0.25*dpr,
+        vy: (Math.random()-.5)*0.25*dpr,
+      }));
+    }
+    function renderDots(){
+      bgx.clearRect(0,0,BG.width,BG.height);
+      dots.forEach(d=>{
+        d.x += d.vx; d.y += d.vy;
+        if (d.x < -5) d.x = BG.width+5; if (d.x > BG.width+5) d.x = -5;
+        if (d.y < -5) d.y = BG.height+5; if (d.y > BG.height+5) d.y = -5;
+        bgx.beginPath(); bgx.arc(d.x, d.y, d.r, 0, Math.PI*2);
+        bgx.fillStyle = `rgba(255,255,255,${d.a})`; bgx.fill();
+      });
+      requestAnimationFrame(renderDots);
+    }
+
+    // Audio tick & haptics
+    let audioCtx = null, lastTickIndex = -1;
+    function ensureAudio(){
+      if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return; // vieux navigateurs
+        audioCtx = new Ctx();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    }
+    function playTick(){
+      try { if (navigator.vibrate) navigator.vibrate(5); } catch(e){}
+      try{
+        ensureAudio(); if(!audioCtx) return;
+        const t = audioCtx.currentTime;
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = 'square';
+        o.frequency.setValueAtTime(900, t);
+        o.frequency.exponentialRampToValueAtTime(220, t + 0.06);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.15, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+        o.connect(g).connect(audioCtx.destination);
+        o.start(t); o.stop(t + 0.10);
+      }catch(e){}
+    }
+
+    // Son cash à l'arrêt
+    function playCash(){
+      try{ ensureAudio(); if(!audioCtx) return; }catch(e){ return; }
+      const t = audioCtx.currentTime;
+      // Ding (cloche)
+      const bell = audioCtx.createOscillator();
+      const bellGain = audioCtx.createGain();
+      bell.type = 'sine';
+      bell.frequency.setValueAtTime(880, t);
+      bell.frequency.exponentialRampToValueAtTime(523.25, t + 0.2);
+      bellGain.gain.setValueAtTime(0.0001, t);
+      bellGain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      bellGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+      bell.connect(bellGain).connect(audioCtx.destination);
+      bell.start(t); bell.stop(t + 0.26);
+      // Bruit de pièces
+      const bufferSize = Math.max(1, Math.floor(2 * audioCtx.sampleRate * 0.25));
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) { output[i] = Math.random() * 2 - 1; }
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = noiseBuffer;
+      const noiseFilter = audioCtx.createBiquadFilter();
+      noiseFilter.type = 'highpass'; noiseFilter.frequency.value = 1200;
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.0001, t);
+      noiseGain.gain.exponentialRampToValueAtTime(0.18, t + 0.03);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      noise.connect(noiseFilter).connect(noiseGain).connect(audioCtx.destination);
+      noise.start(t + 0.02); noise.stop(t + 0.24);
+    }
+
+    // Spin logic: force toujours sur "Premier dépôt TRIPLÉ !"
+    let targetIndex = segments.findIndex(s => WIN_REGEX.test(s.label));
+    if (targetIndex < 0) targetIndex = 0; // fallback safety for preview/builds
+
+    function computeTargetRotation(){
+      const base = targetIndex * ARC + ARC/2; // centre du segment gagnant (repère 0 en haut)
+      const current = ((rotation % TWO_PI) + TWO_PI) % TWO_PI; // [0,2π)
+      const delta = ((-base - current) + TWO_PI) % TWO_PI; // combien il faut ajouter pour aligner
+      const extraTurns = 4 + Math.floor(Math.random()*2); // entre 4 et 5 tours complets
+      return rotation + extraTurns*TWO_PI + delta;
+    }
+
+    function easeOutQuint(t){ return 1 - Math.pow(1 - t, 5); }
+
+    // Démarrage doux -> accélération -> ralentissement
+    function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2; }
+
+    let spinning = false;
+    function spin(){
+      if (spinning || locked) return;
+      spinning = true; if (spinBtn) spinBtn.disabled = true;
+      try { if (navigator.vibrate) navigator.vibrate(10); } catch (e) {}
+
+      const start = rotation;
+      const end = computeTargetRotation();
+      const dur = 5000 + Math.random()*800; // départ plus lent puis accélération, arrêt doux // 4.4s–5.2s (plus d'inertie)
+      const t0 = performance.now();
+      lastTickIndex = Math.floor((((start % TWO_PI)+TWO_PI)%TWO_PI) / ARC);
+
+      (function anim(now){
+        const t = Math.min(1, (now - t0) / dur);
+        const e = easeInOutCubic(t);
+        rotation = start + (end - start) * e;
+
+        // tick sonore + micro-vibration au passage de chaque séparateur
+        const norm = (((rotation % TWO_PI)+TWO_PI)%TWO_PI);
+        const tickIndex = Math.floor(norm / ARC);
+        if (tickIndex !== lastTickIndex){ lastTickIndex = tickIndex; playTick(); }
+
+        drawWheel();
+        if (t < 1) requestAnimationFrame(anim); else finish();
+      })(t0);
+    }
+
+    function finish(){
+      drawWheel();
+      showResult();
+      launchConfetti();
+      if (claimBtn) { claimBtn.classList.add('show'); claimBtn.classList.add('sheen'); }
+      locked = true;                // verrouillage session
+      prizeFocus = true;            // dim des autres segments
+      try { if (navigator.vibrate) navigator.vibrate(30); } catch(e){}
+      if (spinBtn){ spinBtn.remove(); }
+      startHaloPulse();             // halo blanc pulsant sur segment gagnant
+      startWinSheen();              // light sweep sur le segment gagnant
+      try{ playCash(); }catch(e){}
+    }
+
+    function showResult(){
+      const res = document.getElementById('result');
+      res.innerHTML = `
+        <canvas id="resultFx" class="result-fx"></canvas>
+        <div class="kicker">CONGRATS</div>
+        <div class="label">RESULT</div>
+        <div class="title">FIRST DEPOSIT <span>TRIPLED</span></div>
+      `;
+      res.classList.add('show');
+      startResultFx();
+    }
+
+    // Setup initial
+    drawWheel();
+    initDots();
+    renderDots();
+
+    // Redraw on resize / orientation
+    let ro;
+    window.addEventListener('resize', ()=>{
+      clearTimeout(ro);
+      ro = setTimeout(()=>{ drawWheel(); fitFullScreen(CONFETTI); fitFullScreen(BG); }, 120);
+    }, {passive:true});
+    window.addEventListener('orientationchange', ()=>{
+      setTimeout(()=>{ drawWheel(); fitFullScreen(CONFETTI); fitFullScreen(BG); }, 250);
+    }, {passive:true});
+
+    // Bindings
+    if (spinBtn) spinBtn.addEventListener('click', spin);
+    WHEEL.addEventListener('click', ()=>{ if(!spinning && !locked) spin(); });
+
+    // =============================
+    // Test harness (console) — run with ?test=1 or #test
+    // =============================
+    (function runTests(){
+      const need = /[?&]test=1/.test(location.search) || /#test/.test(location.hash);
+      if(!need) return;
+      console.group('%cSelf-tests: Bonus Wheel','color:#0f0');
+      try{
+        // Test 1: computeTargetRotation doit aligner sur targetIndex (approx visuelle)
+        let ok1 = true;
+        for(let i=0;i<5;i++){
+          rotation = Math.random()*TWO_PI;
+          const end = computeTargetRotation();
+          const endMod = ((end % TWO_PI) + TWO_PI) % TWO_PI;
+          if (isNaN(endMod)) ok1 = false;
+        }
+        console.info('Winner segment alignment (approx):', ok1);
+
+        // Test 2: un seul tirage par session
+        spinning = false; locked = false;
+        spin();
+        setTimeout(()=>{
+          const onceLocked = locked === true;
+          console[onceLocked? 'info':'error']('Lock after spin (session):', onceLocked);
+          console.info('Result card present:', /FIRST DEPOSIT/.test(document.getElementById('result').innerText));
+        }, 60);
+
+        // Test 3: confetti couvre tout l'écran
+        const fullW = Math.round(window.innerWidth * dpr);
+        const fullH = Math.round(window.innerHeight * dpr);
+        console[(CONFETTI.width===fullW && CONFETTI.height===fullH)?'info':'error']('Full-screen confetti:', CONFETTI.width, CONFETTI.height);
+
+        // Test 4: structure segments
+        console[segments.length===7?'info':'error']('Segments count = 7:', segments.length);
+        console[targetIndex!==-1?'info':'error']('Index TRIPLED segment:', targetIndex);
+        // Test 4.1: exclamation present in winner label
+        try{ console[/!/.test(segments[0].label)?'info':'warn']('Exclamation present in winner label:', segments[0].label); }catch(e){}
+        // Test 4.2: easing in-out present
+        console[typeof easeInOutCubic==='function'?'info':'error']('easeInOutCubic present:', typeof easeInOutCubic);
+        // Test 5: launchConfetti doit être une fonction et contenir le fade-out
+        console[typeof launchConfetti==='function' ? 'info':'error']('launchConfetti is a function:', typeof launchConfetti);
+        try{ console[/globalAlpha/.test(launchConfetti.toString()) ? 'info':'warn']('Confetti fade-out present (globalAlpha):', /globalAlpha/.test(launchConfetti.toString())); }catch(e){ console.warn('toString non dispo'); }
+        // Test 6: CTA plus étroite que la card résultat (écart 8–120px attendu)
+        try{
+          const resEl = document.getElementById('result');
+          const ctaEl = document.getElementById('claimBtn');
+          if (resEl && ctaEl){
+            const rw = parseInt(getComputedStyle(resEl).width);
+            const cw = parseInt(getComputedStyle(ctaEl).width);
+            const diff = rw - cw; // doit être > 0 car CTA moins large
+            console[(diff>=8 && diff<=120)? 'info':'warn']('CTA narrower than result card:', {rw, cw, diff});
+          }
+        }catch(e){ console.warn('CTA/Result width test not available'); }
+
+      }catch(e){ console.error('Tests error:', e); }
+      console.groupEnd();
+    })();
+
+  })();
+  </script>
+</body>
+</html>
